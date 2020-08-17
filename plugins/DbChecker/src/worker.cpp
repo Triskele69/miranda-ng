@@ -21,41 +21,34 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 void ProcessingDone(void);
 
-static void Finalize()
+void __cdecl WorkerThread(DbToolOptions *opts)
 {
-	opts.dbChecker->Destroy();
-	opts.dbChecker = nullptr;
-}
-
-void __cdecl WorkerThread(void *)
-{
-	int task, firstTime;
 	time_t ts = time(nullptr);
 
 	AddToStatus(STATUS_MESSAGE, TranslateT("Database worker thread activated"));
 
 	DWORD sp = 0;
-	firstTime = 0;
 
 	DBCHeckCallback callback;
 	callback.pfnAddLogMessage = AddToStatus;
-	opts.dbChecker->Start(&callback);
+	opts->dbChecker->Start(&callback);
 
-	for (task = 0;;) {
+	for (int task = 0;; task++) {
 		if (callback.spaceProcessed / (callback.spaceUsed / 1000 + 1) > sp) {
 			sp = callback.spaceProcessed / (callback.spaceUsed / 1000 + 1);
 			SetProgressBar(sp);
 		}
-		WaitForSingleObject(hEventRun, INFINITE);
-		if (WaitForSingleObject(hEventAbort, 0) == WAIT_OBJECT_0) {
+		WaitForSingleObject(opts->hEventRun, INFINITE);
+		if (WaitForSingleObject(opts->hEventAbort, 0) == WAIT_OBJECT_0) {
 			AddToStatus(STATUS_FATAL, TranslateT("Processing aborted by user"));
 			break;
 		}
 
-		int ret = opts.dbChecker->CheckDb(task, firstTime);
-		firstTime = 0;
+		int ret = opts->dbChecker->CheckDb(task);
 		if (ret == ERROR_OUT_OF_PAPER) {
-			Finalize();
+			opts->dbChecker->Destroy();
+			opts->dbChecker = nullptr;
+
 			AddToStatus(STATUS_MESSAGE, TranslateT("Elapsed time: %d sec"), time(nullptr) - ts);
 			if (errorCount)
 				AddToStatus(STATUS_SUCCESS, TranslateT("All tasks completed but with errors (%d)"), errorCount);
@@ -63,13 +56,10 @@ void __cdecl WorkerThread(void *)
 				AddToStatus(STATUS_SUCCESS, TranslateT("All tasks completed successfully"));
 			break;
 		}
-		else if (ret == ERROR_NO_MORE_ITEMS) {
-			task++;
-			firstTime = 1;
-		}
 		else if (ret != ERROR_SUCCESS)
 			break;
 	}
 
+	opts->bFinished = true;
 	ProcessingDone();
 }

@@ -610,7 +610,7 @@ bool CMsgDialog::OnInitDialog()
 		mir_free(wszInitialText);
 	}
 
-	SendMessage(m_pContainer->m_hwnd, DM_QUERYCLIENTAREA, 0, (LPARAM)&rc);
+	m_pContainer->QueryClientArea(rc);
 
 	SetWindowPos(m_hwnd, nullptr, rc.left, rc.top, (rc.right - rc.left), (rc.bottom - rc.top), m_bActivate ? 0 : SWP_NOZORDER | SWP_NOACTIVATE);
 	LoadSplitter();
@@ -785,7 +785,7 @@ void CMsgDialog::onClick_Ok(CCtrlButton *)
 	}
 	else final_sendformat = true;
 
-	if (GetSendButtonState(m_hwnd) == PBS_DISABLED)
+	if (GetSendButtonState() == PBS_DISABLED)
 		return;
 
 	ptrA streamOut(m_message.GetRichTextRtf(!final_sendformat));
@@ -1581,7 +1581,7 @@ int CMsgDialog::OnFilter(MSGFILTER *pFilter)
 		}
 
 		if (pFilter->nmhdr.idFrom == IDC_SRMM_MESSAGE) {
-			if (GetSendButtonState(m_hwnd) != PBS_DISABLED && !m_pContainer->m_flags.m_bHideToolbar)
+			if (GetSendButtonState() != PBS_DISABLED && !m_pContainer->m_flags.m_bHideToolbar)
 				SetFocus(GetDlgItem(m_hwnd, IDOK));
 			else
 				SetFocus(m_pLog->GetHwnd());
@@ -1954,7 +1954,7 @@ LRESULT CMsgDialog::WndProc_Message(UINT msg, WPARAM wParam, LPARAM lParam)
 				m_message.SendMsg(WM_SETREDRAW, TRUE, 0);
 				RedrawWindow(m_message.GetHwnd(), nullptr, nullptr, RDW_INVALIDATE);
 				if (!fCompleted) {
-					if ((GetSendButtonState(GetHwnd()) != PBS_DISABLED))
+					if ((GetSendButtonState() != PBS_DISABLED))
 						SetFocus(m_message.GetHwnd());
 					else
 						SetFocus(m_pLog->GetHwnd());
@@ -1962,8 +1962,9 @@ LRESULT CMsgDialog::WndProc_Message(UINT msg, WPARAM wParam, LPARAM lParam)
 				return 0;
 			}
 
-			if (ProcessHotkeys(wParam, isShift, isCtrl, isAlt))
-				return 0;
+			if (wParam != VK_ESCAPE)
+				if (ProcessHotkeys(wParam, isShift, isCtrl, isAlt))
+					return 0;
 		}
 
 		if (wParam != VK_RIGHT && wParam != VK_LEFT) {
@@ -2781,7 +2782,7 @@ INT_PTR CMsgDialog::DlgProc(UINT uMsg, WPARAM wParam, LPARAM lParam)
 				DM_UpdateLastMessage();
 		}
 
-		SendMessage(m_pContainer->m_hwnd, DM_QUERYCLIENTAREA, 0, (LPARAM)&rcClient);
+		m_pContainer->QueryClientArea(rcClient);
 		MoveWindow(m_hwnd, rcClient.left, rcClient.top, (rcClient.right - rcClient.left), (rcClient.bottom - rcClient.top), TRUE);
 		if (m_bWasBackgroundCreate) {
 			m_bWasBackgroundCreate = false;
